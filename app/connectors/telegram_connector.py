@@ -15,6 +15,19 @@ from app.core.models import IncomingMessage, Channel
 from .base import BaseConnector, OnMessageCallback
 
 
+def _parse_tg_chat_id(chat_id: str) -> tuple[str, Optional[str]]:
+    """Возвращает (chat_id, business_connection_id or None).
+    Мы кодируем id бизнес-чатов как: "<chat_id>:<business_connection_id>".
+    """
+    if ":" in chat_id:
+        try:
+            cid, bcid = chat_id.split(":", 1)
+            return cid, (bcid or None)
+        except Exception:
+            return chat_id, None
+    return chat_id, None
+
+
 class TelegramConnector(BaseConnector):
     def __init__(self, bot_token: str) -> None:
         self._bot = Bot(token=bot_token)
@@ -24,8 +37,11 @@ class TelegramConnector(BaseConnector):
         self._on_message: Optional[OnMessageCallback] = None
         self._polling_task: Optional[asyncio.Task] = None
 
-        # Регистрируем обработчики
+        # Регистрируем обработчики обычных сообщений
         self._router.message.register(self._handle_message)
+        # Регистрируем обработчики Business Mode
+        self._router.business_message.register(self._handle_business_message)
+        self._router.business_connection.register(self._handle_business_connection)
 
     @property
     def name(self) -> str:
@@ -39,7 +55,7 @@ class TelegramConnector(BaseConnector):
         self._on_message = on_message
         if self._polling_task is None or self._polling_task.done():
             self._polling_task = asyncio.create_task(self._run_polling())
-        logger.info("Telegram-коннектор запущен, polling...")
+        logger.info("Telegram-коннектор запущен")
 
     async def stop(self) -> None:
         if self._polling_task and not self._polling_task.done():
@@ -60,9 +76,20 @@ class TelegramConnector(BaseConnector):
         text = message.text or message.caption or ""
         chat_id = str(message.chat.id)
         user_id = str(message.from_user.id if message.from_user else message.chat.id)
+
+        # Если aiogram предоставляет business_connection_id у сообщения — включаем его
+        bc_id = getattr(message, "business_connection_id", None)
+        try:
+            if bc_id is None:
+                md = message.model_dump()
+                bc_id = md.get("business_connection_id")
+        except Exception:
+            bc_id = None
+        stored_chat_id = f"{chat_id}:{bc_id}" if bc_id else chat_id
+
         incoming = IncomingMessage(
             channel=self.channel,
-            chat_id=chat_id,
+            chat_id=stored_chat_id,
             user_id=user_id,
             text=text,
             timestamp=datetime.utcnow(),
@@ -70,8 +97,45 @@ class TelegramConnector(BaseConnector):
         )
         await self._on_message(incoming)
 
+    async def _handle_business_message(self, message: Message) -> None:
+        # Обработка бизнес-сообщений
+        if self._on_message is None:
+            return
+        text = message.text or message.caption or ""
+        chat_id = str(message.chat.id)
+        user_id = str(message.from_user.id if message.from_user else message.chat.id)
+        # У бизнес-сообщений должен быть business_connection_id
+        bc_id = getattr(message, "business_connection_id", None)
+        try:
+            if bc_id is None:
+                md = message.model_dump()
+                bc_id = md.get("business_connection_id")
+        except Exception:
+            bc_id = None
+        stored_chat_id = f"{chat_id}:{bc_id}" if bc_id else chat_id
+        incoming = IncomingMessage(
+            channel=self.channel,
+            chat_id=stored_chat_id,
+            user_id=user_id,
+            text=text,
+            timestamp=datetime.utcnow(),
+            raw=message.model_dump(),
+        )
+        await self._on_message(incoming)
+
+    async def _handle_business_connection(self, message: Message) -> None:
+        # Пока только логируем изменения бизнес-подключений
+        try:
+            logger.info("Обновление бизнес-подключения: {}", message.model_dump())
+        except Exception:
+            logger.info("Получено обновление бизнес-подключения")
+
     async def send_message(self, chat_id: str, text: str) -> None:
-        await self._bot.send_message(chat_id=chat_id, text=text)
+        base_chat_id, bc_id = _parse_tg_chat_id(chat_id)
+        if bc_id:
+            await self._bot.send_message(chat_id=base_chat_id, text=text, business_connection_id=bc_id)
+        else:
+            await self._bot.send_message(chat_id=base_chat_id, text=text)
 
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:
         # Небольшая задержка перед началом индикации набора
@@ -79,9 +143,13 @@ class TelegramConnector(BaseConnector):
         remaining = max(0.0, float(seconds))
         # Пульсирующая отправка действия, чтобы индикатор не пропадал до момента отправки сообщения
         pulse = 4.5  # Telegram показывает действие примерно 5 секунд; обновляем чуть раньше
+        base_chat_id, bc_id = _parse_tg_chat_id(chat_id)
         while remaining > 0:
             try:
-                await self._bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+                if bc_id:
+                    await self._bot.send_chat_action(chat_id=base_chat_id, action=ChatAction.TYPING, business_connection_id=bc_id)
+                else:
+                    await self._bot.send_chat_action(chat_id=base_chat_id, action=ChatAction.TYPING)
             except Exception:
                 pass
             sleep_time = min(pulse, remaining)
