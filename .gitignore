@@ -1,0 +1,22 @@
+# секреты
+.env
+
+# база и рабочие данные
+data/
+*.db
+*.db-*
+*.sqlite
+
+# окружение и кеши
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+PROJECT_INFO.md
+
+# IDE
+.vscode/
+.idea/
