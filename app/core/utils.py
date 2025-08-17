@@ -8,6 +8,6 @@ def estimate_typing_seconds(text: str, characters_per_minute: float = 330.0) -> 
     """
     if not text:
         return 0.3
-    cpm = max(60.0, float(characters_per_minute))  # для защиты: не менее 1 символа/с
-    seconds = (len(text) * 60.0) / cpm
+    cpm = max(60.0, float(characters_per_minute))  # не менее 1 символа/с
+    seconds = (len(text) * 10.0) / cpm
     return max(0.3, seconds)

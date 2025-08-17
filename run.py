@@ -33,7 +33,7 @@ async def main() -> None:
         logger.error("Ни один коннектор не подключен. Для запуска укажите хотя бы один токен API в .env")
         return
 
-    hub = Hub(storage=storage, connectors=connectors)
+    hub = Hub(storage=storage, connectors=connectors, config=config)
 
     stop_event = asyncio.Event()
 

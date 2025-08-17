@@ -4,7 +4,7 @@ import asyncio
 import os
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 import aiosqlite
@@ -124,7 +124,31 @@ class Storage:
                         user_id=user_id,
                         direction=Direction(direction),
                         text=text,
-                        timestamp=datetime.utcfromtimestamp(ts),
+                        timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
+                        correlation_id=corr,
+                    )
+                )
+        return result
+
+    async def get_all_messages(self, global_user_id: str) -> List[MessageRecord]:
+        """Загрузить все сообщения контакта в хронологическом порядке (от старых к новым)."""
+        from .models import Channel, Direction
+        result: List[MessageRecord] = []
+        async with self.db.execute(
+            "SELECT channel, platform_chat_id, platform_user_id, direction, text, ts, correlation_id FROM messages WHERE global_user_id=? ORDER BY ts ASC",
+            (global_user_id,),
+        ) as cursor:
+            async for row in cursor:
+                channel, chat_id, user_id, direction, text, ts, corr = row
+                result.append(
+                    MessageRecord(
+                        global_user_id=global_user_id,
+                        channel=Channel(channel),
+                        chat_id=chat_id,
+                        user_id=user_id,
+                        direction=Direction(direction),
+                        text=text,
+                        timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
                         correlation_id=corr,
                     )
                 )
