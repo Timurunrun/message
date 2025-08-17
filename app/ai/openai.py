@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .provider import AIAssistant, AIMessage, AIResult, Role, ToolSpec
@@ -14,9 +15,9 @@ class OpenAIManager(AIAssistant):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gpt-5-mini",
-        reasoning_effort: str = "low",
-        verbosity: str = "low",
+        model: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+        verbosity: Optional[str] = None,
     ) -> None:
         from openai import AsyncOpenAI
 
@@ -24,9 +25,19 @@ class OpenAIManager(AIAssistant):
         if not self._api_key:
             raise RuntimeError("OPENAI_API_KEY не задан в окружении и не передан в конструктор")
         self._client = AsyncOpenAI(api_key=self._api_key)
-        self._model = model
-        self._reasoning_effort = reasoning_effort
-        self._verbosity = verbosity
+        # Попытка подхватить настройки из system_config.json, если параметры не заданы явно
+        cfg_path = Path(__file__).with_name("system_config.json")
+        cfg: Dict[str, Any] = {}
+        if cfg_path.exists():
+            try:
+                cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+            except Exception:
+                cfg = {}
+        openai_cfg = (cfg.get("OpenAI") or {}) if isinstance(cfg, dict) else {}
+
+        self._model = model or openai_cfg.get("model", "gpt-5-mini")
+        self._reasoning_effort = reasoning_effort or openai_cfg.get("reasoning_effort", "low")
+        self._verbosity = verbosity or openai_cfg.get("verbosity", "low")
 
     async def generate(self, *, messages: List[AIMessage], tools: List[ToolSpec] | None = None) -> AIResult:
         from openai import BadRequestError

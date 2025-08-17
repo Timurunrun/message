@@ -13,6 +13,7 @@ from app.ai import OpenAIManager, AIMessage, Role
 from app.connectors.base import BaseConnector
 from app.core.models import Channel
 from .config import AppConfig
+from pathlib import Path
 
 
 class Hub:
@@ -26,7 +27,7 @@ class Hub:
             self._assistant = OpenAIManager(
             api_key=getattr(config, "openai_api_key", None),
             model=getattr(config, "ai_model", "gpt-5-mini"),
-            reasoning_effort=getattr(config, "ai_reasoning_effort", "low"),
+            reasoning_effort=getattr(config, "ai_reasoning_effort", "minimal"),
             verbosity=getattr(config, "ai_verbosity", "low"),
             )
         except Exception as e:
@@ -68,21 +69,20 @@ class Hub:
         )
 
         # Готовим историю сообщений для ИИ
-        ai_messages = [
-            AIMessage(
-                role=Role.system,
-                content=(
-                    "Ты — вежливый менеджер службы доставки обедов для корпоративных клиентов. "
-                    "Отвечай дружелюбно, кратко и по делу. Если нужно, задавай уточняющие вопросы. "
-                    "Поддерживай этапность диалога: блок вопросов по доставке, затем по блюдам и т.д. "
-                    "Имитация набора текста будет соответствовать длине ответа, длинные ответы дели на абзацы."
-                ),
-            )
-        ]
-        # Притягиваем ВСЕ сообщения пользователя, чтобы учесть весь контекст
+        ai_messages: list[AIMessage] = []
+        prompt_path = Path(__file__).parents[1] / "ai" / "system_prompt.md"
+        if prompt_path.exists():
+            system_prompt = prompt_path.read_text(encoding="utf-8")
+            ai_messages.append(AIMessage(role=Role.system, content=system_prompt))
+        else:
+            err = f"Не найден system_prompt.md по пути {prompt_path}"
+            logger.error(err)
+            raise FileNotFoundError(err)
+
+        # Собираем историю диалога пользователя
         try:
             history = await self._storage.get_all_messages(global_user_id)
-            # История уже отсортирована от старых к новым; конвертируем в сообщения для модели
+            # Конвертируем историю сообщений с БД в диалог для модели
             for r in history:
                 if r.direction == Direction.inbound:
                     ai_messages.append(AIMessage(role=Role.user, content=r.text))
