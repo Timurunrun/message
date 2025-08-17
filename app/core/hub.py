@@ -101,7 +101,7 @@ class Hub:
         else:
             try:
                 t0 = time.perf_counter()
-                ai_result = await self._assistant.generate(messages=ai_messages, tools=None)
+                ai_result = await self._assistant.generate(messages=ai_messages)
                 latency = time.perf_counter() - t0
                 reply_text = ai_result.text or "Извините, не удалось сформировать ответ."
                 # Логируем метрики ответа
