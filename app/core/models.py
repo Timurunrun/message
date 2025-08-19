@@ -39,3 +39,18 @@ class MessageRecord:
     text: str
     timestamp: datetime
     correlation_id: Optional[str] = None
+
+
+# Запись использования инструмента моделью
+
+@dataclass
+class ToolInvocation:
+    global_user_id: str
+    channel: Channel
+    chat_id: str
+    user_id: str
+    tool_name: str
+    arguments: str     # аргументы в виде JSON
+    output: str        # строковый вывод инструмента
+    timestamp: datetime
+    call_id: Optional[str] = None

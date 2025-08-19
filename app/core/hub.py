@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from loguru import logger
 
-from .models import IncomingMessage, MessageRecord, Direction
+from .models import IncomingMessage, MessageRecord, Direction, ToolInvocation
 from .storage import Storage
 from .utils import estimate_typing_seconds
 from app.ai import OpenAIManager, AIMessage, Role
@@ -114,6 +114,38 @@ class Hub:
                     char_count,
                     typing_seconds,
                 )
+                # Сохраняем упрощённую запись об использовании инструмента
+                events = getattr(self._assistant, "last_events", []) or []
+                if events:
+                    now = datetime.now(timezone.utc)
+                    # Сопоставляем tool_call и tool_output по call_id, формируя одну запись
+                    calls: dict[str, dict] = {}
+                    for ev in events:
+                        if ev.get("type") == "tool_call":
+                            calls[ev.get("call_id")] = {
+                                "name": ev.get("name"),
+                                "arguments": ev.get("arguments"),
+                                "output": "",
+                            }
+                        elif ev.get("type") == "tool_output":
+                            cid = ev.get("call_id")
+                            rec = calls.setdefault(cid, {"name": "", "arguments": "", "output": ""})
+                            rec["output"] = str(ev.get("output") or "")
+
+                    for cid, rec in calls.items():
+                        await self._storage.save_tool_invocation(
+                            ToolInvocation(
+                                global_user_id=global_user_id,
+                                channel=msg.channel,
+                                chat_id=msg.chat_id,
+                                user_id=msg.user_id,
+                                tool_name=rec.get("name") or "",
+                                arguments=rec.get("arguments") or "",
+                                output=rec.get("output") or "",
+                                timestamp=now,
+                                call_id=cid,
+                            )
+                        )
             except Exception as e:
                 logger.exception("Ошибка при генерации ответа ИИ: {}", e)
                 reply_text = "Извините, сейчас проходят технические работы. Мы свяжемся с вами позже."

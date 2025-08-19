@@ -30,5 +30,5 @@ class AIResult:
 class AIAssistant(abc.ABC):
     @abc.abstractmethod
     async def generate(self, *, messages: List[AIMessage]) -> AIResult:
-        """Сгенерировать ответ ассистента. Возвращает финальный текст и id провайдера."""
+        """Сгенерировать ответ ассистента. Возвращает финальный текст и id провайдера текущего ответа."""
         ...

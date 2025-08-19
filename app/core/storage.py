@@ -5,12 +5,12 @@ import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 import aiosqlite
 from loguru import logger
 
-from .models import MessageRecord
+from .models import MessageRecord, ToolInvocation
 
 
 class Storage:
@@ -57,6 +57,21 @@ class Storage:
             );
 
             CREATE INDEX IF NOT EXISTS idx_messages_user_ts ON messages(global_user_id, ts DESC);
+
+            CREATE TABLE IF NOT EXISTS tool_invocations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                global_user_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                platform_chat_id TEXT NOT NULL,
+                platform_user_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                arguments TEXT NOT NULL,
+                output TEXT NOT NULL,
+                ts INTEGER NOT NULL,
+                call_id TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_tool_invocations_user_ts ON tool_invocations(global_user_id, ts DESC);
             """
         )
         await self.db.commit()
@@ -153,3 +168,48 @@ class Storage:
                     )
                 )
         return result
+
+    async def save_tool_invocation(self, inv: ToolInvocation) -> None:
+        ts = int(inv.timestamp.timestamp())
+        await self.db.execute(
+            """
+            INSERT INTO tool_invocations(global_user_id, channel, platform_chat_id, platform_user_id, tool_name, arguments, output, ts, call_id)
+            VALUES(?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                inv.global_user_id,
+                inv.channel.value,
+                inv.chat_id,
+                inv.user_id,
+                inv.tool_name,
+                inv.arguments,
+                inv.output,
+                ts,
+                inv.call_id,
+            ),
+        )
+        await self.db.commit()
+
+    async def get_tool_invocations(self, global_user_id: str, limit: int = 200) -> List[ToolInvocation]:
+        from .models import Channel
+        res: List[ToolInvocation] = []
+        async with self.db.execute(
+            "SELECT channel, platform_chat_id, platform_user_id, tool_name, arguments, output, ts, call_id FROM tool_invocations WHERE global_user_id=? ORDER BY ts ASC LIMIT ?",
+            (global_user_id, limit),
+        ) as cursor:
+            async for row in cursor:
+                channel, chat_id, user_id, tool_name, arguments, output, ts, call_id = row
+                res.append(
+                    ToolInvocation(
+                        global_user_id=global_user_id,
+                        channel=Channel(channel),
+                        chat_id=chat_id,
+                        user_id=user_id,
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        output=output,
+                        timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
+                        call_id=call_id,
+                    )
+                )
+        return res
