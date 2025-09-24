@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import random
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import httpx
@@ -196,7 +196,7 @@ class VKConnector(BaseConnector):
                             chat_id=self._encode_chat_id(peer_id=int(peer_id), community=community),
                             user_id=str(from_id),
                             text=text,
-                            timestamp=datetime.utcnow(),
+                            timestamp=datetime.now(timezone.utc),
                             raw=upd,
                         )
                         await self._on_message(incoming)

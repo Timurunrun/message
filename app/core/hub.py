@@ -180,7 +180,7 @@ class Hub:
                 user_id=msg.user_id,
                 direction=Direction.outbound,
                 text=reply_text,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
         )
 

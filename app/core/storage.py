@@ -82,7 +82,7 @@ class Storage:
             self._db = None
 
     async def upsert_contact(self, channel: str, platform_user_id: str, platform_chat_id: str) -> str:
-        now = int(datetime.utcnow().timestamp())
+        now = int(datetime.now(timezone.utc).timestamp())
         async with self._lock:
             async with self.db.execute(
                 "SELECT global_user_id FROM contacts WHERE channel=? AND platform_user_id=?",

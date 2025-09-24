@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import random
 
@@ -87,12 +87,23 @@ class TelegramConnector(BaseConnector):
             bc_id = None
         stored_chat_id = f"{chat_id}:{bc_id}" if bc_id else chat_id
 
+        # Перехватываем /start
+        if text.strip().startswith("/start"):
+            try:
+                await self.send_message(
+                    chat_id=stored_chat_id,
+                    text="Добрый день! Это компания по корпоративной доставке питания.\n\nНапишите в чат, что вас интересует. Вам ответит первый освободившийся оператор 🍽️",
+                )
+            except Exception:
+                pass
+            return
+
         incoming = IncomingMessage(
             channel=self.channel,
             chat_id=stored_chat_id,
             user_id=user_id,
             text=text,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             raw=message.model_dump(),
         )
         await self._on_message(incoming)
@@ -118,7 +129,7 @@ class TelegramConnector(BaseConnector):
             chat_id=stored_chat_id,
             user_id=user_id,
             text=text,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             raw=message.model_dump(),
         )
         await self._on_message(incoming)
@@ -141,8 +152,7 @@ class TelegramConnector(BaseConnector):
         # Небольшая задержка перед началом индикации набора
         await asyncio.sleep(random.uniform(1.0, 3.0))
         remaining = max(0.0, float(seconds))
-        # Пульсирующая отправка действия, чтобы индикатор не пропадал до момента отправки сообщения
-        pulse = 4.5  # Telegram показывает действие примерно 5 секунд; обновляем чуть раньше
+        pulse = 4.5  # обновление статуса "печатает..."
         base_chat_id, bc_id = _parse_tg_chat_id(chat_id)
         while remaining > 0:
             try:
