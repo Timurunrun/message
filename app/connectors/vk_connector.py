@@ -220,13 +220,13 @@ class VKConnector(BaseConnector):
             {"peer_id": peer_id, "random_id": random_id, "message": text},
         )
 
+    # Имитируем набор текста
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:
         peer_id, community = self._decode_chat_id(chat_id)
-        # Небольшая задержка перед началом индикации набора
-        await asyncio.sleep(random.uniform(1.0, 3.0))
+        # Небольшая задержка перед началом набора
+        # await asyncio.sleep(random.uniform(1.0, 3.0))
         remaining = max(0.0, float(seconds))
-        # Пульсирующая индикация, чтобы индикатор был виден до момента отправки
-        pulse = 4.5
+        pulse = 4.5     # обновление статуса "печатает..."
         while remaining > 0:
             try:
                 await self._api_call("messages.setActivity", community, {"peer_id": peer_id, "type": "typing"})

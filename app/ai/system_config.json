@@ -1,6 +1,6 @@
 {
   "OpenAI": {
-    "model": "gpt-5-mini",
+    "model": "gpt-5",
     "reasoning_effort": "low",
     "verbosity": "low",
     "max_steps": 6

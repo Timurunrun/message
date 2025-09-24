@@ -149,9 +149,10 @@ class TelegramConnector(BaseConnector):
         else:
             await self._bot.send_message(chat_id=base_chat_id, text=text)
 
-    # Небольшая задержка перед началом индикации набора
+    # Имитируем набор текста
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:
-        await asyncio.sleep(random.uniform(1.0, 3.0))
+        # Небольшая задержка перед началом набора
+        # await asyncio.sleep(random.uniform(1.0, 3.0))
         remaining = max(0.0, float(seconds))
         pulse = 4.5  # обновление статуса "печатает..."
         base_chat_id, bc_id = _parse_tg_chat_id(chat_id)
