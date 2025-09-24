@@ -17,7 +17,7 @@ from .base import BaseConnector, OnMessageCallback
 
 def _parse_tg_chat_id(chat_id: str) -> tuple[str, Optional[str]]:
     """Возвращает (chat_id, business_connection_id or None).
-    Мы кодируем id бизнес-чатов как: "<chat_id>:<business_connection_id>".
+    Кодируем id бизнес-чатов как: "<chat_id>:<business_connection_id>".
     """
     if ":" in chat_id:
         try:
@@ -108,8 +108,9 @@ class TelegramConnector(BaseConnector):
         )
         await self._on_message(incoming)
 
+    # Обработка бизнес-сообщений
     async def _handle_business_message(self, message: Message) -> None:
-        # Обработка бизнес-сообщений
+        
         if self._on_message is None:
             return
         text = message.text or message.caption or ""
@@ -148,8 +149,8 @@ class TelegramConnector(BaseConnector):
         else:
             await self._bot.send_message(chat_id=base_chat_id, text=text)
 
+    # Небольшая задержка перед началом индикации набора
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:
-        # Небольшая задержка перед началом индикации набора
         await asyncio.sleep(random.uniform(1.0, 3.0))
         remaining = max(0.0, float(seconds))
         pulse = 4.5  # обновление статуса "печатает..."
