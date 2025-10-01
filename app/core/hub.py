@@ -14,21 +14,30 @@ from app.connectors.base import BaseConnector
 from app.core.models import Channel
 from .config import AppConfig
 from pathlib import Path
+from app.core.session import SessionContext, set_current_session, reset_current_session
+from app.crm.service import AmoCRMService, LeadStageContext
 
 
 class Hub:
-    def __init__(self, storage: Storage, connectors: List["BaseConnector"], config: AppConfig | None = None) -> None:
+    def __init__(
+        self,
+        storage: Storage,
+        connectors: List["BaseConnector"],
+        config: AppConfig | None = None,
+        crm_service: AmoCRMService | None = None,
+    ) -> None:
         self._storage = storage
         self._connectors = connectors
         self._tasks: list[asyncio.Task] = []
+        self._crm_service = crm_service
 
-        # Инициализируем ИИ
+        # Инициализируем менеджер ИИ
         try:
             self._assistant = OpenAIManager(
             api_key=getattr(config, "openai_api_key", None),
-            model=getattr(config, "ai_model", "gpt-5-mini"),
-            reasoning_effort=getattr(config, "ai_reasoning_effort", "minimal"),
-            verbosity=getattr(config, "ai_verbosity", "low"),
+            model=getattr(config, "ai_model"),
+            reasoning_effort=getattr(config, "ai_reasoning_effort"),
+            verbosity=getattr(config, "ai_verbosity"),
             )
         except Exception as e:
             logger.error("Не удалось инициализировать ИИ: {}", e)
@@ -50,11 +59,28 @@ class Hub:
 
     async def on_incoming_message(self, msg: IncomingMessage) -> None:
         logger.info(f"Входящее сообщение через канал {msg.channel.value} от user={msg.user_id} chat={msg.chat_id}: {msg.text!r}")
-        global_user_id = await self._storage.upsert_contact(
+        global_user_id, _ = await self._storage.upsert_contact(
             channel=msg.channel.value,
             platform_user_id=msg.user_id,
             platform_chat_id=msg.chat_id,
         )
+
+        session_ctx = SessionContext(
+            global_user_id=global_user_id,
+            channel=msg.channel,
+            chat_id=msg.chat_id,
+            user_id=msg.user_id,
+        )
+
+        crm_binding = None
+        lead_context: Optional[LeadStageContext] = None
+        if self._crm_service is not None:
+            try:
+                crm_binding = await self._crm_service.ensure_contact_and_lead(session=session_ctx, message=msg)
+                lead_context = await self._crm_service.get_lead_context(global_user_id)
+            except Exception as e:
+                logger.error("Ошибка AmoCRM при обработке сообщения: {}", e)
+                lead_context = None
 
         await self._storage.save_message(
             MessageRecord(
@@ -70,14 +96,71 @@ class Hub:
 
         # Готовим историю сообщений для ИИ
         ai_messages: list[AIMessage] = []
+        system_parts: List[str] = []
         prompt_path = Path(__file__).parents[1] / "ai" / "system_prompt.md"
         if prompt_path.exists():
             system_prompt = prompt_path.read_text(encoding="utf-8")
-            ai_messages.append(AIMessage(role=Role.system, content=system_prompt))
+            system_parts.append(system_prompt)
         else:
             err = f"Не найден system_prompt.md по пути {prompt_path}"
             logger.error(err)
             raise FileNotFoundError(err)
+
+        if self._crm_service is not None:
+            crm_info_lines: List[str] = []
+            if lead_context is not None:
+                crm_info_lines.append("Текущая сделка AmoCRM:")
+                deal_name = lead_context.lead_name if lead_context.lead_name else ("—" if lead_context.lead_present else "— (сделка ещё не создана)")
+                crm_info_lines.append(f"1) Название сделки: {deal_name}")
+                if lead_context.current_stage:
+                    stage_name = lead_context.current_stage.get("name", "—")
+                    stage_status = lead_context.current_stage.get("status_id")
+                    stage_status_str = f"status_id={stage_status}" if stage_status is not None else "status_id=—"
+                    crm_info_lines.append(f"   Текущий этап: {stage_name} ({stage_status_str})")
+                else:
+                    crm_info_lines.append("   Текущий этап: —")
+                next_stage = lead_context.next_stage
+                if next_stage:
+                    next_name = next_stage.get("name", "—")
+                    next_status = next_stage.get("status_id")
+                    next_status_str = f"status_id={next_status}" if next_status is not None else "status_id=—"
+                    crm_info_lines.append(f"2) Следующий этап: {next_name} ({next_status_str})")
+                else:
+                    crm_info_lines.append("2) Следующий этап: —")
+                crm_info_lines.append("3) Вопросы текущего этапа:")
+                for question in lead_context.questions:
+                    crm_info_lines.append(
+                        f"   • {question.name} (id={question.id}, type={question.type})"
+                    )
+                    crm_info_lines.append(f"     Текущий ответ: {question.answer}")
+                    if question.enum_options:
+                        crm_info_lines.append("     enum_id варианты:")
+                        for option in question.enum_options:
+                            crm_info_lines.append(f"       - {option['id']}: {option['value']}")
+            elif crm_binding and crm_binding.lead_id:
+                crm_info_lines.append("Текущая сделка AmoCRM: информация недоступна")
+            else:
+                crm_info_lines.append("Сделка ещё не создана или недоступна")
+            stage_lines: list[str] = []
+            for stage in self._crm_service.stages:
+                status = f"{stage.status_id}" if stage.status_id is not None else "—"
+                stage_lines.append(f"{stage.index + 1}. {stage.name} (status_id={status})")
+            stages_hint = " | ".join(stage_lines)
+            crm_info_lines.append(
+                f"""
+                ## Работа с AmoCRM
+                1. После получения ответа обязательно фиксируй его через инструмент `amocrm_update_lead_fields`.
+                - Для текстовых и числовых полей передавай значение строкой (например, '10').
+                - Для вопросов с типами `select` и `multiselect` передай `enum_id` из списка вариантов для соответствующего вопроса.
+                2. Когда ты задашь все вопросы на этапе, переходи к следующему этапу при помощи amocrm_set_lead_stage.
+                """
+            )
+            if stage_lines:
+                crm_info_lines.append(f"Этапы воронки: {stages_hint}")
+            system_parts.append("\n".join(crm_info_lines))
+
+        if system_parts:
+            ai_messages.append(AIMessage(role=Role.system, content="\n\n".join(system_parts)))
 
         # Собираем историю диалога пользователя
         try:
@@ -101,7 +184,11 @@ class Hub:
         else:
             try:
                 t0 = time.perf_counter()
-                ai_result = await self._assistant.generate(messages=ai_messages)
+                token = set_current_session(session_ctx)
+                try:
+                    ai_result = await self._assistant.generate(messages=ai_messages)
+                finally:
+                    reset_current_session(token)
                 latency = time.perf_counter() - t0
                 reply_text = ai_result.text or "Извините, не удалось сформировать ответ."
                 # Логируем метрики ответа
@@ -150,7 +237,6 @@ class Hub:
                 logger.exception("Ошибка при генерации ответа ИИ: {}", e)
                 reply_text = "Извините, сейчас проходят технические работы. Мы свяжемся с вами позже."
 
-        # Находим коннектор, который получил сообщение (сейчас отвечаем в том же канале)
         connector = self._find_connector_for_channel(msg.channel)
         if connector is None:
             logger.error(f"Не найден коннектор для ответа в канале {msg.channel}")

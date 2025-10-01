@@ -50,7 +50,17 @@ class ToolInvocation:
     chat_id: str
     user_id: str
     tool_name: str
-    arguments: str     # аргументы в виде JSON
-    output: str        # строковый вывод инструмента
+    arguments: str
+    output: str
     timestamp: datetime
     call_id: Optional[str] = None
+
+
+@dataclass
+class CrmBinding:
+	global_user_id: str
+	contact_id: Optional[int]
+	lead_id: Optional[int]
+	lead_status_id: Optional[int]
+	created_at: datetime
+	updated_at: datetime

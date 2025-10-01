@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from loguru import logger
+
 from .provider import AIAssistant, AIMessage, AIResult, Role
 from .tools import get_openai_tools_spec, call_tool
 
@@ -36,17 +38,32 @@ class OpenAIManager(AIAssistant):
                 cfg = {}
         openai_cfg = (cfg.get("OpenAI") or {}) if isinstance(cfg, dict) else {}
 
-        self._model = model or openai_cfg.get("model", "gpt-5-mini")
-        self._reasoning_effort = reasoning_effort or openai_cfg.get("reasoning_effort", "low")
-        self._verbosity = verbosity or openai_cfg.get("verbosity", "low")
-        self._max_steps = max_steps or int(openai_cfg.get("max_steps", 6))
+        self._model = model or openai_cfg.get("model")
+        self._reasoning_effort = reasoning_effort or openai_cfg.get("reasoning_effort")
+        self._verbosity = verbosity or openai_cfg.get("verbosity")
+        self._max_steps = max_steps or int(openai_cfg.get("max_steps"))
 
     async def generate(self, *, messages: List[AIMessage]) -> AIResult:
         from openai import BadRequestError
+        # Подготовим промпт для логирования и для передачи провайдеру
+        prompt_snapshot: List[Dict[str, Any]] = []
+        for m in messages:
+            entry: Dict[str, Any] = {"role": m.role.value, "content": m.content}
+            if m.name:
+                entry["name"] = m.name
+            if m.tool_call_id:
+                entry["tool_call_id"] = m.tool_call_id
+            prompt_snapshot.append(entry)
+
+        try:
+            logger.info("LLM prompt:\n{}", json.dumps(prompt_snapshot, ensure_ascii=False, indent=2))
+        except Exception:
+            logger.info("LLM prompt (raw): {}", prompt_snapshot)
+
         # История сообщений как стартовый input_list
         input_list: List[Dict[str, Any]] = [
-            {"role": m.role.value, "content": m.content, **({"name": m.name} if m.name else {})}
-            for m in messages
+            {"role": item["role"], "content": item["content"], **({"name": item["name"]} if "name" in item else {})}
+            for item in prompt_snapshot
         ]
 
         provider_id: Optional[str] = None
@@ -85,7 +102,15 @@ class OpenAIManager(AIAssistant):
                         args = json.loads(arguments or "{}")
                     except Exception:
                         args = {}
+                    
+                    # Логирование вызова инструмента
+                    logger.info(f"Tool call: {name} | Parameters: {args}")
+                    
                     result_str = await call_tool(name or "", args)
+                    
+                    # Логирование результата выполнения инструмента
+                    logger.info(f"Tool result: {name} | Output: {result_str}")
+                    
                     tool_call_outputs.append({"type": "function_call_output", "call_id": call_id, "output": result_str})
                     self.last_events.append({"type": "tool_output", "call_id": call_id, "output": result_str})
 

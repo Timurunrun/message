@@ -9,11 +9,13 @@ class AppConfig(BaseModel):
     telegram_bot_token: str | None = None
     vk_tokens: List[str] = []
     db_path: str = "data/messages.db"
-    # Параметры ИИ
+
     openai_api_key: str | None = None
-    ai_model: str = "gpt-5-nano"
-    ai_reasoning_effort: str = "minimal"  # minimal|low|medium|high
-    ai_verbosity: str = "low"  # low|medium|high
+    ai_model: str | None = None
+    ai_reasoning_effort: str | None = None
+    ai_verbosity: str | None = None
+    amocrm_base_url: str | None = None
+    amocrm_access_token: str | None = None
 
     @staticmethod
     def load_from_env() -> "AppConfig":
@@ -24,7 +26,9 @@ class AppConfig(BaseModel):
             vk_tokens=vk_tokens,
             db_path=os.getenv("DB_PATH", "data/messages.db"),
             openai_api_key=os.getenv("OPENAI_API_KEY") or None,
-            ai_model=os.getenv("AI_MODEL", "gpt-5-mini"),
+            ai_model=os.getenv("AI_MODEL", "gpt-5"),
             ai_reasoning_effort=os.getenv("AI_REASONING_EFFORT", "low"),
             ai_verbosity=os.getenv("AI_VERBOSITY", "low"),
+            amocrm_base_url=os.getenv("AMOCRM_BASE_URL") or None,
+            amocrm_access_token=os.getenv("AMOCRM_ACCESS_TOKEN") or None,
         )

@@ -1,0 +1,1016 @@
+[
+  {
+    "id": 111425,
+    "name": "Должность",
+    "type": "text",
+    "account_id": 28048150,
+    "code": "POSITION",
+    "sort": 503,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": false,
+    "is_predefined": true,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/111425?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 111427,
+    "name": "Телефон",
+    "type": "multitext",
+    "account_id": 28048150,
+    "code": "PHONE",
+    "sort": 504,
+    "is_api_only": false,
+    "enums": [
+      {
+        "id": 153501,
+        "value": "WORK",
+        "sort": 2
+      },
+      {
+        "id": 153503,
+        "value": "WORKDD",
+        "sort": 4
+      },
+      {
+        "id": 153505,
+        "value": "MOB",
+        "sort": 6
+      },
+      {
+        "id": 153507,
+        "value": "FAX",
+        "sort": 8
+      },
+      {
+        "id": 153509,
+        "value": "HOME",
+        "sort": 10
+      },
+      {
+        "id": 153511,
+        "value": "OTHER",
+        "sort": 12
+      }
+    ],
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": false,
+    "is_predefined": true,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/111427?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 111429,
+    "name": "Email",
+    "type": "multitext",
+    "account_id": 28048150,
+    "code": "EMAIL",
+    "sort": 506,
+    "is_api_only": false,
+    "enums": [
+      {
+        "id": 153513,
+        "value": "WORK",
+        "sort": 2
+      },
+      {
+        "id": 153515,
+        "value": "PRIV",
+        "sort": 4
+      },
+      {
+        "id": 153517,
+        "value": "OTHER",
+        "sort": 6
+      }
+    ],
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": false,
+    "is_predefined": true,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/111429?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 729899,
+    "name": "Телефон (из Анкеты)",
+    "type": "text",
+    "account_id": 28048150,
+    "code": null,
+    "sort": 509,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/729899?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 731541,
+    "name": "Комментарий",
+    "type": "text",
+    "account_id": 28048150,
+    "code": null,
+    "sort": 504,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/731541?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 732785,
+    "name": "Telergam ID",
+    "type": "text",
+    "account_id": 28048150,
+    "code": "TGID",
+    "sort": 507,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/732785?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 732787,
+    "name": "Telergam username",
+    "type": "text",
+    "account_id": 28048150,
+    "code": "TGUSERNAME",
+    "sort": 508,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/732787?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 733025,
+    "name": "Ссылка на профиль",
+    "type": "url",
+    "account_id": 28048150,
+    "code": "B2B_HELP_URL_PROFILE",
+    "sort": 505,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/733025?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 733053,
+    "name": "Whatsgroup_WZ",
+    "type": "text",
+    "account_id": 28048150,
+    "code": null,
+    "sort": 506,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/733053?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 733219,
+    "name": "y_files",
+    "type": "text",
+    "account_id": 28048150,
+    "code": null,
+    "sort": 500,
+    "is_api_only": true,
+    "enums": null,
+    "group_id": "contacts_13611733200168",
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/733219?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 733713,
+    "name": "Пользовательское соглашение",
+    "type": "checkbox",
+    "account_id": 28048150,
+    "code": "USER_AGREEMENT",
+    "sort": 10502,
+    "is_api_only": true,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/733713?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 734329,
+    "name": "Яндекс.Диск - Ссылка на папку",
+    "type": "url",
+    "account_id": 28048150,
+    "code": "NOVA_Y_FOLDER_CONTACTS",
+    "sort": 500,
+    "is_api_only": false,
+    "enums": null,
+    "group_id": "contacts_13611733200168",
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/734329?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 734771,
+    "name": "REGION TIME - Область или город",
+    "type": "multiselect",
+    "account_id": 28048150,
+    "code": "EMFY_CF_REGION_TIME_BASE",
+    "sort": 500,
+    "is_api_only": true,
+    "enums": [
+      {
+        "id": 989147,
+        "value": "Нет в базе",
+        "sort": 100
+      },
+      {
+        "id": 989157,
+        "value": "Псковская область",
+        "sort": 101
+      },
+      {
+        "id": 989161,
+        "value": "Тамбовская область",
+        "sort": 102
+      },
+      {
+        "id": 989163,
+        "value": "Краснодарский край",
+        "sort": 103
+      },
+      {
+        "id": 989165,
+        "value": "Республика Коми",
+        "sort": 104
+      },
+      {
+        "id": 989167,
+        "value": "Костромская область",
+        "sort": 105
+      },
+      {
+        "id": 989169,
+        "value": "Ярославская область",
+        "sort": 106
+      },
+      {
+        "id": 989171,
+        "value": "Республика Удмуртская",
+        "sort": 107
+      },
+      {
+        "id": 989175,
+        "value": "Пермский край",
+        "sort": 108
+      },
+      {
+        "id": 989179,
+        "value": "Ростовская область",
+        "sort": 109
+      },
+      {
+        "id": 989181,
+        "value": "Рязанская область",
+        "sort": 110
+      },
+      {
+        "id": 989183,
+        "value": "Владимирская область",
+        "sort": 111
+      },
+      {
+        "id": 989185,
+        "value": "Калининградская область",
+        "sort": 112
+      },
+      {
+        "id": 989189,
+        "value": "Санкт-Петербург и ЛO",
+        "sort": 113
+      },
+      {
+        "id": 989191,
+        "value": "Москва и МO",
+        "sort": 114
+      },
+      {
+        "id": 989193,
+        "value": "Орловская область",
+        "sort": 115
+      },
+      {
+        "id": 989195,
+        "value": "Тульская область",
+        "sort": 116
+      },
+      {
+        "id": 989197,
+        "value": "Новгородская область",
+        "sort": 117
+      },
+      {
+        "id": 989199,
+        "value": "Вологодская область",
+        "sort": 118
+      },
+      {
+        "id": 989201,
+        "value": "Липецкая область",
+        "sort": 119
+      },
+      {
+        "id": 989203,
+        "value": "Ненецкий АО",
+        "sort": 120
+      },
+      {
+        "id": 989205,
+        "value": "Белгородская область",
+        "sort": 121
+      },
+      {
+        "id": 989207,
+        "value": "Калужская область",
+        "sort": 122
+      },
+      {
+        "id": 989209,
+        "value": "Самарская область",
+        "sort": 123
+      },
+      {
+        "id": 989211,
+        "value": "Нижегородская область",
+        "sort": 124
+      },
+      {
+        "id": 989213,
+        "value": "Иркутская область",
+        "sort": 125
+      },
+      {
+        "id": 989217,
+        "value": "Республика Башкортостан",
+        "sort": 126
+      },
+      {
+        "id": 989219,
+        "value": "Архангельская область",
+        "sort": 127
+      },
+      {
+        "id": 989221,
+        "value": "Воронежская область",
+        "sort": 128
+      },
+      {
+        "id": 989223,
+        "value": "Республика Калмыкия",
+        "sort": 129
+      },
+      {
+        "id": 989225,
+        "value": "Алтайский край",
+        "sort": 130
+      },
+      {
+        "id": 989229,
+        "value": "Мурманская область",
+        "sort": 131
+      },
+      {
+        "id": 989231,
+        "value": "Брянская область",
+        "sort": 132
+      },
+      {
+        "id": 989233,
+        "value": "Камчатский край",
+        "sort": 133
+      },
+      {
+        "id": 989237,
+        "value": "Чеченская Республика",
+        "sort": 134
+      },
+      {
+        "id": 989239,
+        "value": "Кировская область",
+        "sort": 135
+      },
+      {
+        "id": 989241,
+        "value": "Пензенская область",
+        "sort": 136
+      },
+      {
+        "id": 989243,
+        "value": "Челябинская область",
+        "sort": 137
+      },
+      {
+        "id": 989245,
+        "value": "Курская область",
+        "sort": 138
+      },
+      {
+        "id": 989247,
+        "value": "Смоленская область",
+        "sort": 139
+      },
+      {
+        "id": 989249,
+        "value": "Луганская Народная Республика",
+        "sort": 140
+      },
+      {
+        "id": 989251,
+        "value": "Ивановская область",
+        "sort": 141
+      },
+      {
+        "id": 989253,
+        "value": "Республика Татарстан",
+        "sort": 142
+      },
+      {
+        "id": 989255,
+        "value": "Архангельская обл и Ненецкий AO",
+        "sort": 143
+      },
+      {
+        "id": 989257,
+        "value": "Оренбургская область",
+        "sort": 144
+      },
+      {
+        "id": 989259,
+        "value": "Тюменская область",
+        "sort": 145
+      },
+      {
+        "id": 989261,
+        "value": "Тверская область",
+        "sort": 146
+      },
+      {
+        "id": 989263,
+        "value": "Волгоградская область",
+        "sort": 147
+      },
+      {
+        "id": 989265,
+        "value": "Свердловская область",
+        "sort": 148
+      },
+      {
+        "id": 989267,
+        "value": "Ульяновская область",
+        "sort": 149
+      },
+      {
+        "id": 989269,
+        "value": "г. Москва",
+        "sort": 150
+      },
+      {
+        "id": 989271,
+        "value": "г. Санкт-Петербург",
+        "sort": 151
+      },
+      {
+        "id": 989273,
+        "value": "Астраханская область",
+        "sort": 152
+      },
+      {
+        "id": 989275,
+        "value": "Красноярский край",
+        "sort": 153
+      },
+      {
+        "id": 989277,
+        "value": "Новосибирская область",
+        "sort": 154
+      },
+      {
+        "id": 989279,
+        "value": "Республика Карелия",
+        "sort": 155
+      },
+      {
+        "id": 989281,
+        "value": "Магаданская область",
+        "sort": 156
+      },
+      {
+        "id": 989285,
+        "value": "Саратовская область",
+        "sort": 157
+      },
+      {
+        "id": 989287,
+        "value": "Омская область",
+        "sort": 158
+      },
+      {
+        "id": 989291,
+        "value": "Чувашская Республика",
+        "sort": 159
+      },
+      {
+        "id": 989293,
+        "value": "Ставропольский край",
+        "sort": 160
+      },
+      {
+        "id": 989295,
+        "value": "Республика Адыгея",
+        "sort": 161
+      },
+      {
+        "id": 989297,
+        "value": "Ханты-Мансийский-Югра АО",
+        "sort": 162
+      },
+      {
+        "id": 989299,
+        "value": "Хабаровский край",
+        "sort": 163
+      },
+      {
+        "id": 989303,
+        "value": "Республика Саха /Якутия/",
+        "sort": 164
+      },
+      {
+        "id": 989313,
+        "value": "Кемеровская область",
+        "sort": 165
+      },
+      {
+        "id": 989315,
+        "value": "г. Владикавказ|Республика Северная Осетия-Алания",
+        "sort": 166
+      },
+      {
+        "id": 989331,
+        "value": "Республика Бурятия",
+        "sort": 167
+      },
+      {
+        "id": 989333,
+        "value": "Сахалинская область",
+        "sort": 168
+      },
+      {
+        "id": 989337,
+        "value": "Республика Дагестан",
+        "sort": 169
+      },
+      {
+        "id": 989387,
+        "value": "Амурская область",
+        "sort": 170
+      },
+      {
+        "id": 989411,
+        "value": "Донецкая Народная Республика",
+        "sort": 171
+      },
+      {
+        "id": 989413,
+        "value": "Приморский край",
+        "sort": 172
+      },
+      {
+        "id": 989581,
+        "value": "Курганская область",
+        "sort": 173
+      },
+      {
+        "id": 989601,
+        "value": "г. Севастополь",
+        "sort": 174
+      },
+      {
+        "id": 990641,
+        "value": "Республика Марий Эл",
+        "sort": 175
+      },
+      {
+        "id": 990877,
+        "value": "Республика Кабардино-Балкарская",
+        "sort": 176
+      },
+      {
+        "id": 991003,
+        "value": "Республика Ингушетия",
+        "sort": 177
+      },
+      {
+        "id": 991463,
+        "value": "Республика Северная Осетия-Алания",
+        "sort": 178
+      }
+    ],
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/734771?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 734773,
+    "name": "REGION TIME - Страна",
+    "type": "multiselect",
+    "account_id": 28048150,
+    "code": "EMFY_CF_REGION_TIME_COUNTRY",
+    "sort": 500,
+    "is_api_only": true,
+    "enums": [
+      {
+        "id": 989149,
+        "value": "Нет в базе",
+        "sort": 100
+      },
+      {
+        "id": 989153,
+        "value": "Россия",
+        "sort": 101
+      },
+      {
+        "id": 989317,
+        "value": "США, Канада",
+        "sort": 102
+      },
+      {
+        "id": 989321,
+        "value": "Франция",
+        "sort": 103
+      },
+      {
+        "id": 989323,
+        "value": "Кувейт",
+        "sort": 104
+      },
+      {
+        "id": 989325,
+        "value": "г. Улан-Удэ|Республика Бурятия",
+        "sort": 105
+      },
+      {
+        "id": 989327,
+        "value": "Бангладеш",
+        "sort": 106
+      },
+      {
+        "id": 989329,
+        "value": "Египет",
+        "sort": 107
+      },
+      {
+        "id": 989335,
+        "value": "Казахстан",
+        "sort": 108
+      },
+      {
+        "id": 989339,
+        "value": "Республика Молдова",
+        "sort": 109
+      },
+      {
+        "id": 989389,
+        "value": "Индонезия",
+        "sort": 110
+      },
+      {
+        "id": 989391,
+        "value": "Республика Беларусь",
+        "sort": 111
+      },
+      {
+        "id": 989579,
+        "value": "Китай",
+        "sort": 112
+      },
+      {
+        "id": 991221,
+        "value": "Армения",
+        "sort": 113
+      },
+      {
+        "id": 991517,
+        "value": "Чехия",
+        "sort": 114
+      }
+    ],
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/734773?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 734775,
+    "name": "REGION TIME - Часовой пояс",
+    "type": "multiselect",
+    "account_id": 28048150,
+    "code": "EMFY_CF_REGION_TIME_TIMEZONE",
+    "sort": 500,
+    "is_api_only": true,
+    "enums": [
+      {
+        "id": 989151,
+        "value": "Нет в базе",
+        "sort": 100
+      },
+      {
+        "id": 989155,
+        "value": "UTC +00:00",
+        "sort": 101
+      },
+      {
+        "id": 989159,
+        "value": "UTC +03:00",
+        "sort": 102
+      },
+      {
+        "id": 989173,
+        "value": "UTC +04:00",
+        "sort": 103
+      },
+      {
+        "id": 989177,
+        "value": "UTC +05:00",
+        "sort": 104
+      },
+      {
+        "id": 989187,
+        "value": "UTC +02:00",
+        "sort": 105
+      },
+      {
+        "id": 989215,
+        "value": "UTC +08:00",
+        "sort": 106
+      },
+      {
+        "id": 989227,
+        "value": "UTC +07:00",
+        "sort": 107
+      },
+      {
+        "id": 989235,
+        "value": "UTC +12:00",
+        "sort": 108
+      },
+      {
+        "id": 989283,
+        "value": "UTC +11:00",
+        "sort": 109
+      },
+      {
+        "id": 989289,
+        "value": "UTC +06:00",
+        "sort": 110
+      },
+      {
+        "id": 989301,
+        "value": "UTC +10:00",
+        "sort": 111
+      },
+      {
+        "id": 989305,
+        "value": "UTC +09:00",
+        "sort": 112
+      },
+      {
+        "id": 989319,
+        "value": "UTC -06:00",
+        "sort": 113
+      },
+      {
+        "id": 991389,
+        "value": "+3",
+        "sort": 114
+      },
+      {
+        "id": 991391,
+        "value": "+5",
+        "sort": 115
+      },
+      {
+        "id": 991393,
+        "value": "+2",
+        "sort": 116
+      },
+      {
+        "id": 991395,
+        "value": "+8",
+        "sort": 117
+      },
+      {
+        "id": 991397,
+        "value": "+4",
+        "sort": 118
+      },
+      {
+        "id": 991399,
+        "value": "+7",
+        "sort": 119
+      },
+      {
+        "id": 991401,
+        "value": "+6",
+        "sort": 120
+      },
+      {
+        "id": 991405,
+        "value": "+9",
+        "sort": 121
+      }
+    ],
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/734775?limit=50&page=1"
+      }
+    }
+  },
+  {
+    "id": 736393,
+    "name": "Telegram логин",
+    "type": "text",
+    "account_id": 28048150,
+    "code": "telegram_login",
+    "sort": 500,
+    "is_api_only": true,
+    "enums": null,
+    "group_id": null,
+    "required_statuses": [],
+    "is_deletable": true,
+    "is_predefined": false,
+    "entity_type": "contacts",
+    "remind": null,
+    "triggers": [],
+    "currency": null,
+    "hidden_statuses": [],
+    "_links": {
+      "self": {
+        "href": "https://dostavkaobedov.amocrm.ru/api/v4/contacts/custom_fields/736393?limit=50&page=1"
+      }
+    }
+  }
+]

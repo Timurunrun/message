@@ -9,6 +9,9 @@ from app.core.storage import Storage
 from app.core.hub import Hub
 from app.connectors.telegram_connector import TelegramConnector
 from app.connectors.vk_connector import VKConnector
+from app.crm.service import AmoCRMService
+from app.crm.deps import set_amocrm_service
+from app.ai.tools import register_amocrm_tools
 
 
 async def main() -> None:
@@ -19,6 +22,21 @@ async def main() -> None:
     await storage.initialize()
 
     connectors = []
+    amocrm_service = None
+    if config.amocrm_base_url and config.amocrm_access_token:
+        try:
+            amocrm_service = await AmoCRMService.create(
+                base_url=config.amocrm_base_url,
+                access_token=config.amocrm_access_token,
+                storage=storage,
+            )
+            set_amocrm_service(amocrm_service)
+            register_amocrm_tools()
+            logger.info("AmoCRM сервис и инструменты инициализированы")
+        except Exception as e:
+            logger.error("Не удалось инициализировать AmoCRM: {}", e)
+    else:
+        logger.warning("Параметры AmoCRM не заданы. Интеграция будет отключена")
     if config.telegram_bot_token:
         connectors.append(TelegramConnector(bot_token=config.telegram_bot_token))
     else:
@@ -33,7 +51,7 @@ async def main() -> None:
         logger.error("Ни один коннектор не подключен. Для запуска укажите хотя бы один токен API в .env")
         return
 
-    hub = Hub(storage=storage, connectors=connectors, config=config)
+    hub = Hub(storage=storage, connectors=connectors, config=config, crm_service=amocrm_service)
 
     stop_event = asyncio.Event()
 
@@ -59,6 +77,8 @@ async def main() -> None:
         logger.info("Остановка хаба...")
         await hub.stop()
         await storage.close()
+        if amocrm_service:
+            await amocrm_service.close()
         logger.info("Хаб остановлен.")
 
 

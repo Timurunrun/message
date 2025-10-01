@@ -10,7 +10,7 @@ from typing import List, Optional
 import aiosqlite
 from loguru import logger
 
-from .models import MessageRecord, ToolInvocation
+from .models import MessageRecord, ToolInvocation, CrmBinding
 
 
 class Storage:
@@ -72,6 +72,15 @@ class Storage:
             );
 
             CREATE INDEX IF NOT EXISTS idx_tool_invocations_user_ts ON tool_invocations(global_user_id, ts DESC);
+
+            CREATE TABLE IF NOT EXISTS crm_bindings (
+                global_user_id TEXT PRIMARY KEY,
+                contact_id INTEGER,
+                lead_id INTEGER,
+                lead_status_id INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
             """
         )
         await self.db.commit()
@@ -81,7 +90,7 @@ class Storage:
             await self._db.close()
             self._db = None
 
-    async def upsert_contact(self, channel: str, platform_user_id: str, platform_chat_id: str) -> str:
+    async def upsert_contact(self, channel: str, platform_user_id: str, platform_chat_id: str) -> tuple[str, bool]:
         now = int(datetime.now(timezone.utc).timestamp())
         async with self._lock:
             async with self.db.execute(
@@ -90,7 +99,7 @@ class Storage:
             ) as cursor:
                 row = await cursor.fetchone()
             if row:
-                return row[0]
+                return row[0], False
             global_user_id = str(uuid.uuid4())
             await self.db.execute(
                 "INSERT OR REPLACE INTO contacts(channel, platform_user_id, platform_chat_id, global_user_id, created_at) VALUES (?,?,?,?,?)",
@@ -100,7 +109,7 @@ class Storage:
             logger.debug(
                 f"Создана новая связь контакта: channel={channel} platform_user_id={platform_user_id} -> global_user_id={global_user_id}"
             )
-            return global_user_id
+            return global_user_id, True
 
     async def save_message(self, record: MessageRecord) -> None:
         ts = int(record.timestamp.timestamp())
@@ -213,3 +222,44 @@ class Storage:
                     )
                 )
         return res
+
+    async def get_crm_binding(self, global_user_id: str) -> CrmBinding | None:
+        async with self.db.execute(
+            "SELECT contact_id, lead_id, lead_status_id, created_at, updated_at FROM crm_bindings WHERE global_user_id=?",
+            (global_user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if not row:
+            return None
+        contact_id, lead_id, lead_status_id, created_at, updated_at = row
+        return CrmBinding(
+            global_user_id=global_user_id,
+            contact_id=int(contact_id) if contact_id is not None else None,
+            lead_id=int(lead_id) if lead_id is not None else None,
+            lead_status_id=int(lead_status_id) if lead_status_id is not None else None,
+            created_at=datetime.fromtimestamp(int(created_at), tz=timezone.utc),
+            updated_at=datetime.fromtimestamp(int(updated_at), tz=timezone.utc),
+        )
+
+    async def set_crm_binding(
+        self,
+        global_user_id: str,
+        *,
+        contact_id: int | None = None,
+        lead_id: int | None = None,
+        lead_status_id: int | None = None,
+    ) -> None:
+        now = int(datetime.now(timezone.utc).timestamp())
+        await self.db.execute(
+            """
+            INSERT INTO crm_bindings(global_user_id, contact_id, lead_id, lead_status_id, created_at, updated_at)
+            VALUES(?,?,?,?,?,?)
+            ON CONFLICT(global_user_id) DO UPDATE SET
+                contact_id = COALESCE(excluded.contact_id, crm_bindings.contact_id),
+                lead_id = COALESCE(excluded.lead_id, crm_bindings.lead_id),
+                lead_status_id = COALESCE(excluded.lead_status_id, crm_bindings.lead_status_id),
+                updated_at = excluded.updated_at
+            """,
+            (global_user_id, contact_id, lead_id, lead_status_id, now, now),
+        )
+        await self.db.commit()

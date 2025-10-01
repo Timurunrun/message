@@ -1,0 +1,34 @@
+{
+  "phone": {
+    "field_id": 111427,
+    "enum_id": 153501,
+    "name": "Телефон",
+    "enum_name": "WORK"
+  },
+  "email": {
+    "field_id": 111429,
+    "enum_id": 153513,
+    "name": "Email",
+    "enum_name": "WORK"
+  },
+  "telegram_id": {
+    "field_id": 732785,
+    "name": "Telergam ID"
+  },
+  "telegram_username": {
+    "field_id": 732787,
+    "name": "Telergam username"
+  },
+  "telegram_login": {
+    "field_id": 736393,
+    "name": "Telegram логин"
+  },
+  "profile_link": {
+    "field_id": 733025,
+    "name": "Ссылка на профиль"
+  },
+  "whatsapp_group": {
+    "field_id": 733053,
+    "name": "Whatsgroup_WZ"
+  }
+}
