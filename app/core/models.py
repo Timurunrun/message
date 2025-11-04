@@ -64,3 +64,14 @@ class CrmBinding:
 	lead_status_id: Optional[int]
 	created_at: datetime
 	updated_at: datetime
+
+
+@dataclass
+class AIResponseRecord:
+    global_user_id: str
+    channel: Channel
+    chat_id: str
+    user_id: str
+    text: str
+    timestamp: datetime
+    provider_message_id: Optional[str] = None

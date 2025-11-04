@@ -1,12 +1,39 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, List
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from loguru import logger
 
 from app.crm.deps import get_amocrm_service
-from app.core.session import get_current_session
+from app.core.session import SessionContext, get_current_session
+
+
+@dataclass(frozen=True)
+class SendTextRequest:
+	text: str
+	simulate_typing: bool = True
+	correlation_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class SendVoiceRequest:
+	voice_id: Optional[str] = None
+	audio_url: Optional[str] = None
+	transcription: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class SendReactionRequest:
+	reaction: str
+	remove: bool = False
+
+
+@dataclass(frozen=True)
+class MessagingActions:
+	send_text: Callable[[SessionContext, SendTextRequest], Awaitable[str]]
+	send_voice: Optional[Callable[[SessionContext, SendVoiceRequest], Awaitable[str]]] = None
+	send_reaction: Optional[Callable[[SessionContext, SendReactionRequest], Awaitable[str]]] = None
 
 
 @dataclass(frozen=True)
@@ -20,6 +47,21 @@ class Tool:
 _TOOLS: Dict[str, Tool] = {}
 
 _AMOCRM_TOOLS_REGISTERED = False
+_MESSAGING_ACTIONS: Optional[MessagingActions] = None
+
+
+def set_messaging_actions(actions: MessagingActions) -> None:
+	global _MESSAGING_ACTIONS
+	_MESSAGING_ACTIONS = actions
+
+
+def clear_messaging_actions() -> None:
+	global _MESSAGING_ACTIONS
+	_MESSAGING_ACTIONS = None
+
+
+def _get_messaging_actions() -> Optional[MessagingActions]:
+	return _MESSAGING_ACTIONS
 
 
 def register_tool(tool: Tool) -> None:
@@ -77,6 +119,82 @@ async def _test_console_handler(_: Dict[str, Any]) -> str:
 	return "ok"
 
 
+async def _send_text_message_handler(args: Dict[str, Any]) -> str:
+	actions = _get_messaging_actions()
+	if actions is None or actions.send_text is None:
+		return "messaging_not_configured"
+	session = get_current_session()
+	if session is None:
+		return "session_not_found"
+	text = args.get("text")
+	if not isinstance(text, str) or not text.strip():
+		return "invalid_text"
+	simulate_typing = args.get("simulate_typing", True)
+	if not isinstance(simulate_typing, bool):
+		simulate_typing = True
+	correlation_id = args.get("correlation_id")
+	if correlation_id is not None and not isinstance(correlation_id, str):
+		correlation_id = None
+	request = SendTextRequest(text=text, simulate_typing=simulate_typing, correlation_id=correlation_id)
+	try:
+		result = await actions.send_text(session, request)
+	except Exception as exc:
+		logger.exception("Error in send_text tool: {}", exc)
+		return f"tool_error: {exc}"
+	return result or "ok"
+
+
+async def _send_voice_message_handler(args: Dict[str, Any]) -> str:
+	actions = _get_messaging_actions()
+	session = get_current_session()
+	if session is None:
+		return "session_not_found"
+	if actions is None or actions.send_voice is None:
+		return "voice_not_supported"
+	voice_id = args.get("voice_id")
+	audio_url = args.get("audio_url")
+	transcription = args.get("transcription")
+	if voice_id is not None and not isinstance(voice_id, str):
+		voice_id = None
+	if audio_url is not None and not isinstance(audio_url, str):
+		audio_url = None
+	if transcription is not None and not isinstance(transcription, str):
+		transcription = None
+	request = SendVoiceRequest(voice_id=voice_id, audio_url=audio_url, transcription=transcription)
+	try:
+		result = await actions.send_voice(session, request)
+	except NotImplementedError:
+		return "voice_not_supported"
+	except Exception as exc:
+		logger.exception("Error in send_voice tool: {}", exc)
+		return f"tool_error: {exc}"
+	return result or "voice_sent"
+
+
+async def _send_reaction_handler(args: Dict[str, Any]) -> str:
+	actions = _get_messaging_actions()
+	session = get_current_session()
+	if session is None:
+		return "session_not_found"
+	reaction = args.get("reaction")
+	if not isinstance(reaction, str) or not reaction.strip():
+		return "invalid_reaction"
+	remove = args.get("remove", False)
+	if not isinstance(remove, bool):
+		remove = False
+	if actions is None or actions.send_reaction is None:
+		return "reaction_not_supported"
+	request = SendReactionRequest(reaction=reaction, remove=remove)
+	try:
+		result = await actions.send_reaction(session, request)
+	except NotImplementedError:
+		return "reaction_not_supported"
+	except Exception as exc:
+		logger.exception("Error in send_reaction tool: {}", exc)
+		return f"tool_error: {exc}"
+	return result or "reaction_set"
+
+
 register_tool(
 	Tool(
 		name="test_console_tool",
@@ -91,6 +209,83 @@ register_tool(
 	)
 )
 
+register_tool(
+	Tool(
+		name="messaging_send_text",
+		description="Отправляет текстовое сообщение пользователю в текущем канале общения.",
+		parameters={
+			"type": "object",
+			"properties": {
+				"text": {
+					"type": "string",
+					"description": "Текстовое содержимое сообщения",
+					"minLength": 1,
+				},
+			},
+			"required": ["text"],
+			"additionalProperties": False,
+		},
+		handler=_send_text_message_handler,
+	)
+)
+
+'''
+register_tool(
+	Tool(
+		name="messaging_send_voice",
+		description=(
+			"Отправляет голосовое сообщение или аудио. Используй, если нужно ответить голосом."
+		),
+		parameters={
+			"type": "object",
+			"properties": {
+				"voice_id": {
+					"type": ["string", "null"],
+					"description": "Идентификатор ранее загруженного голосового сообщения",
+				},
+				"audio_url": {
+					"type": ["string", "null"],
+					"description": "URL аудиофайла, доступного для скачивания",
+				},
+				"transcription": {
+					"type": ["string", "null"],
+					"description": "Краткая расшифровка или содержание голосового ответа",
+				},
+			},
+			"required": ["voice_id", "audio_url", "transcription"],
+			"additionalProperties": False,
+		},
+		handler=_send_voice_message_handler,
+	)
+)
+
+register_tool(
+	Tool(
+		name="messaging_send_reaction",
+		description=(
+			"Ставит или снимает реакцию на последнее сообщение пользователя, если это поддерживает канал."
+		),
+		parameters={
+			"type": "object",
+			"properties": {
+				"reaction": {
+					"type": "string",
+					"description": "Код реакции/эмодзи в формате канала",
+					"minLength": 1,
+				},
+				"remove": {
+					"type": ["boolean", "null"],
+					"description": "Снять реакцию вместо установки",
+					"default": False,
+				},
+			},
+			"required": ["reaction", "remove"],
+			"additionalProperties": False,
+		},
+		handler=_send_reaction_handler,
+	)
+)
+'''
 
 async def _amocrm_update_fields_handler(args: Dict[str, Any]) -> str:
 	service = get_amocrm_service()

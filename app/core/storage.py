@@ -10,7 +10,7 @@ from typing import List, Optional
 import aiosqlite
 from loguru import logger
 
-from .models import MessageRecord, ToolInvocation, CrmBinding
+from .models import MessageRecord, ToolInvocation, CrmBinding, AIResponseRecord
 
 
 class Storage:
@@ -73,6 +73,19 @@ class Storage:
 
             CREATE INDEX IF NOT EXISTS idx_tool_invocations_user_ts ON tool_invocations(global_user_id, ts DESC);
 
+            CREATE TABLE IF NOT EXISTS ai_responses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                global_user_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                platform_chat_id TEXT NOT NULL,
+                platform_user_id TEXT NOT NULL,
+                text TEXT NOT NULL,
+                provider_message_id TEXT,
+                ts INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ai_responses_user_ts ON ai_responses(global_user_id, ts DESC);
+
             CREATE TABLE IF NOT EXISTS crm_bindings (
                 global_user_id TEXT PRIMARY KEY,
                 contact_id INTEGER,
@@ -98,6 +111,7 @@ class Storage:
             await self.db.executescript(
                 """
                 DELETE FROM messages;
+                DELETE FROM ai_responses;
                 DELETE FROM tool_invocations;
                 DELETE FROM crm_bindings;
                 DELETE FROM contacts;
@@ -211,6 +225,25 @@ class Storage:
                 inv.output,
                 ts,
                 inv.call_id,
+            ),
+        )
+        await self.db.commit()
+
+    async def save_ai_response(self, response: AIResponseRecord) -> None:
+        ts = int(response.timestamp.timestamp())
+        await self.db.execute(
+            """
+            INSERT INTO ai_responses(global_user_id, channel, platform_chat_id, platform_user_id, text, provider_message_id, ts)
+            VALUES(?,?,?,?,?,?,?)
+            """,
+            (
+                response.global_user_id,
+                response.channel.value,
+                response.chat_id,
+                response.user_id,
+                response.text,
+                response.provider_message_id,
+                ts,
             ),
         )
         await self.db.commit()

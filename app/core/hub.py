@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from datetime import datetime, timezone
 from typing import List, Optional
 from loguru import logger
 
-from .models import IncomingMessage, MessageRecord, Direction, ToolInvocation
+from .models import IncomingMessage, MessageRecord, Direction, ToolInvocation, AIResponseRecord
 from .storage import Storage
 from .utils import estimate_typing_seconds
 from app.ai import OpenAIManager, AIMessage, Role
@@ -16,6 +17,14 @@ from .config import AppConfig
 from pathlib import Path
 from app.core.session import SessionContext, set_current_session, reset_current_session
 from app.crm.service import AmoCRMService, LeadStageContext
+from app.ai.tools import (
+    MessagingActions,
+    SendReactionRequest,
+    SendTextRequest,
+    SendVoiceRequest,
+    clear_messaging_actions,
+    set_messaging_actions,
+)
 
 
 class Hub:
@@ -30,6 +39,14 @@ class Hub:
         self._connectors = connectors
         self._tasks: list[asyncio.Task] = []
         self._crm_service = crm_service
+
+        set_messaging_actions(
+            MessagingActions(
+                send_text=self._handle_tool_send_text,
+                send_voice=self._handle_tool_send_voice,
+                send_reaction=self._handle_tool_send_reaction,
+            )
+        )
 
         # Инициализируем менеджер ИИ
         try:
@@ -56,6 +73,7 @@ class Hub:
         for task in self._tasks:
             task.cancel()
         self._tasks.clear()
+        clear_messaging_actions()
 
     async def on_incoming_message(self, msg: IncomingMessage) -> None:
         logger.info(f"Входящее сообщение через канал {msg.channel.value} от user={msg.user_id} chat={msg.chat_id}: {msg.text!r}")
@@ -163,23 +181,39 @@ class Hub:
             ai_messages.append(AIMessage(role=Role.system, content="\n\n".join(system_parts)))
 
         # Собираем историю диалога пользователя
+        history: List[MessageRecord] = []
         try:
             history = await self._storage.get_all_messages(global_user_id)
-            # Конвертируем историю сообщений с БД в диалог для модели
+        except Exception:
+            history = []
+
+        if history:
             for r in history:
                 if r.direction == Direction.inbound:
                     ai_messages.append(AIMessage(role=Role.user, content=r.text))
                 else:
                     ai_messages.append(AIMessage(role=Role.assistant, content=r.text))
-        except Exception:
-            pass
-        # Добавляем текущее входящее сообщение
-        ai_messages.append(AIMessage(role=Role.user, content=msg.text))
+        else:
+            ai_messages.append(AIMessage(role=Role.user, content=msg.text))
 
-        reply_text = ""
         if self._assistant is None:
-            reply_text = (
+            ai_text = (
                 "Извините, сейчас проходят технические работы. Мы свяжемся с вами позже."
+            )
+            await self._storage.save_ai_response(
+                AIResponseRecord(
+                    global_user_id=global_user_id,
+                    channel=msg.channel,
+                    chat_id=msg.chat_id,
+                    user_id=msg.user_id,
+                    text=ai_text,
+                    timestamp=datetime.now(timezone.utc),
+                    provider_message_id=None,
+                )
+            )
+            await self._handle_tool_send_text(
+                session_ctx,
+                SendTextRequest(text=ai_text, simulate_typing=True),
             )
         else:
             try:
@@ -190,19 +224,27 @@ class Hub:
                 finally:
                     reset_current_session(token)
                 latency = time.perf_counter() - t0
-                reply_text = ai_result.text or "Извините, не удалось сформировать ответ."
+                events = getattr(self._assistant, "last_events", []) or []
+                ai_text = ai_result.text or self._extract_primary_text_from_events(events) or ""
                 # Логируем метрики ответа
-                char_count = len(reply_text)
-                typing_seconds = estimate_typing_seconds(reply_text)
                 logger.info(
-                    "OpenAI ответ: id={}, latency={:.2f}s, длина={} симв., typing≈{:.1f}s",
+                    "Внутренний ответ ассистента: id={}, latency={:.2f}s, текст={}",
                     getattr(ai_result, "provider_message_id", None),
                     latency,
-                    char_count,
-                    typing_seconds,
+                    ai_text,
+                )
+                await self._storage.save_ai_response(
+                    AIResponseRecord(
+                        global_user_id=global_user_id,
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        user_id=msg.user_id,
+                        text=ai_text,
+                        timestamp=datetime.now(timezone.utc),
+                        provider_message_id=getattr(ai_result, "provider_message_id", None),
+                    )
                 )
                 # Сохраняем упрощённую запись об использовании инструмента
-                events = getattr(self._assistant, "last_events", []) or []
                 if events:
                     now = datetime.now(timezone.utc)
                     # Сопоставляем tool_call и tool_output по call_id, формируя одну запись
@@ -235,43 +277,113 @@ class Hub:
                         )
             except Exception as e:
                 logger.exception("Ошибка при генерации ответа ИИ: {}", e)
-                reply_text = "Извините, сейчас проходят технические работы. Мы свяжемся с вами позже."
-
-        connector = self._find_connector_for_channel(msg.channel)
-        if connector is None:
-            logger.error(f"Не найден коннектор для ответа в канале {msg.channel}")
-            return
-
-        typing_seconds = estimate_typing_seconds(reply_text)
-        logger.info(
-            "Имитация набора перед отправкой: длина={} симв., typing≈{:.1f}s",
-            len(reply_text),
-            typing_seconds,
-        )
-        await connector.simulate_typing(chat_id=msg.chat_id, seconds=typing_seconds)
-
-        await connector.send_message(chat_id=msg.chat_id, text=reply_text)
-        logger.info(
-            "Ответ отправлен в {} chat_id={} ({} симв.)",
-            msg.channel.value,
-            msg.chat_id,
-            len(reply_text),
-        )
-
-        await self._storage.save_message(
-            MessageRecord(
-                global_user_id=global_user_id,
-                channel=msg.channel,
-                chat_id=msg.chat_id,
-                user_id=msg.user_id,
-                direction=Direction.outbound,
-                text=reply_text,
-                timestamp=datetime.now(timezone.utc),
-            )
-        )
+                fallback_text = "Извините, сейчас проходят технические работы. Мы свяжемся с вами позже."
+                await self._storage.save_ai_response(
+                    AIResponseRecord(
+                        global_user_id=global_user_id,
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        user_id=msg.user_id,
+                        text=fallback_text,
+                        timestamp=datetime.now(timezone.utc),
+                        provider_message_id=None,
+                    )
+                )
+                await self._handle_tool_send_text(
+                    session_ctx,
+                    SendTextRequest(text=fallback_text, simulate_typing=True),
+                )
 
     def _find_connector_for_channel(self, channel: "Channel") -> "BaseConnector | None":
         for c in self._connectors:
             if c.channel == channel:
                 return c
         return None
+
+    async def _handle_tool_send_text(self, session: SessionContext, payload: SendTextRequest) -> str:
+        connector = self._find_connector_for_channel(session.channel)
+        if connector is None:
+            logger.error("Не найден коннектор для канала {} при отправке текста", session.channel)
+            return "connector_not_available"
+        text = payload.text.strip()
+        if not text:
+            return "invalid_text"
+        typing_seconds = estimate_typing_seconds(text)
+        if payload.simulate_typing and typing_seconds > 0:
+            try:
+                await connector.simulate_typing(chat_id=session.chat_id, seconds=typing_seconds)
+            except Exception as exc:
+                logger.warning("Не удалось имитировать набор: {}", exc)
+        try:
+            await connector.send_message(chat_id=session.chat_id, text=text)
+        except Exception as exc:
+            logger.exception("Не удалось отправить сообщение через коннектор {}: {}", connector.name, exc)
+            return f"send_failed: {exc}"
+        await self._storage.save_message(
+            MessageRecord(
+                global_user_id=session.global_user_id,
+                channel=session.channel,
+                chat_id=session.chat_id,
+                user_id=session.user_id,
+                direction=Direction.outbound,
+                text=text,
+                timestamp=datetime.now(timezone.utc),
+                correlation_id=payload.correlation_id,
+            )
+        )
+        logger.info(
+            "Отправлено сообщение через tool messaging_send_text в канал {} chat_id={} ({} симв.)",
+            session.channel.value,
+            session.chat_id,
+            len(text),
+        )
+        return "ok"
+
+    async def _handle_tool_send_voice(self, session: SessionContext, payload: SendVoiceRequest) -> str:
+        connector = self._find_connector_for_channel(session.channel)
+        if connector is None:
+            logger.error("Не найден коннектор для канала {} при отправке голоса", session.channel)
+            return "connector_not_available"
+        logger.info(
+            "Получен запрос на голосовое сообщение (voice_id={}, audio_url={}) для канала {} — функция не реализована",
+            payload.voice_id,
+            payload.audio_url,
+            session.channel.value,
+        )
+        return "voice_not_supported"
+
+    async def _handle_tool_send_reaction(self, session: SessionContext, payload: SendReactionRequest) -> str:
+        connector = self._find_connector_for_channel(session.channel)
+        if connector is None:
+            logger.error("Не найден коннектор для канала {} при отправке реакции", session.channel)
+            return "connector_not_available"
+        logger.info(
+            "Получен запрос на реакцию '{}' (remove={}) для канала {} — функция не реализована",
+            payload.reaction,
+            payload.remove,
+            session.channel.value,
+        )
+        return "reaction_not_supported"
+
+    @staticmethod
+    def _extract_primary_text_from_events(events: List[dict]) -> str:
+        for ev in reversed(events):
+            if ev.get("type") != "tool_call":
+                continue
+            if ev.get("name") != "messaging_send_text":
+                continue
+            raw_args = ev.get("arguments")
+            payload: Optional[dict] = None
+            if isinstance(raw_args, dict):
+                payload = raw_args
+            elif isinstance(raw_args, str):
+                try:
+                    payload = json.loads(raw_args)
+                except Exception:
+                    payload = None
+            if not payload:
+                continue
+            text = payload.get("text")
+            if isinstance(text, str) and text.strip():
+                return text
+        return ""
