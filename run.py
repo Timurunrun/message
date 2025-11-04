@@ -38,7 +38,7 @@ async def main() -> None:
     else:
         logger.warning("Параметры AmoCRM не заданы. Интеграция будет отключена")
     if config.telegram_bot_token:
-        connectors.append(TelegramConnector(bot_token=config.telegram_bot_token))
+        connectors.append(TelegramConnector(bot_token=config.telegram_bot_token, on_clear_db=storage.clear_all))
     else:
         logger.warning("Токен API Telegram-бота TELEGRAM_BOT_TOKEN не задан; Telegram-коннектор будет отключён")
 

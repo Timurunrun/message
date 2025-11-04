@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Awaitable, Callable
 import random
 
 from aiogram import Bot, Dispatcher, Router
@@ -29,13 +29,14 @@ def _parse_tg_chat_id(chat_id: str) -> tuple[str, Optional[str]]:
 
 
 class TelegramConnector(BaseConnector):
-    def __init__(self, bot_token: str) -> None:
+    def __init__(self, bot_token: str, on_clear_db: Optional[Callable[[], Awaitable[None]]] = None) -> None:
         self._bot = Bot(token=bot_token)
         self._dp = Dispatcher()
         self._router = Router()
         self._dp.include_router(self._router)
         self._on_message: Optional[OnMessageCallback] = None
         self._polling_task: Optional[asyncio.Task] = None
+        self._on_clear_db = on_clear_db
 
         # Регистрируем обработчики обычных сообщений
         self._router.message.register(self._handle_message)
@@ -86,9 +87,10 @@ class TelegramConnector(BaseConnector):
         except Exception:
             bc_id = None
         stored_chat_id = f"{chat_id}:{bc_id}" if bc_id else chat_id
+        command = text.strip().split()[0].lower() if text.strip() else ""
 
         # Перехватываем /start
-        if text.strip().startswith("/start"):
+        if command == "/start":
             try:
                 await self.send_message(
                     chat_id=stored_chat_id,
@@ -96,6 +98,18 @@ class TelegramConnector(BaseConnector):
                 )
             except Exception:
                 pass
+            return
+
+        if command == "/clear_db":
+            if self._on_clear_db is None:
+                await self.send_message(chat_id=stored_chat_id, text="Очистка БД недоступна")
+                return
+            try:
+                await self._on_clear_db()
+                await self.send_message(chat_id=stored_chat_id, text="База данных успешно очищена")
+            except Exception as exc:
+                logger.exception("Ошибка при очистке БД через Telegram-команду: {}", exc)
+                await self.send_message(chat_id=stored_chat_id, text="Не удалось очистить базу данных. Проверьте логи приложения.")
             return
 
         incoming = IncomingMessage(

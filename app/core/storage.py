@@ -90,6 +90,22 @@ class Storage:
             await self._db.close()
             self._db = None
 
+    async def clear_all(self) -> None:
+        """Полностью очищает все таблицы пользовательских данных."""
+        if self._db is None:
+            raise RuntimeError("Storage is not initialized")
+        async with self._lock:
+            await self.db.executescript(
+                """
+                DELETE FROM messages;
+                DELETE FROM tool_invocations;
+                DELETE FROM crm_bindings;
+                DELETE FROM contacts;
+                """
+            )
+            await self.db.commit()
+        logger.info("База данных очищена по запросу администратора")
+
     async def upsert_contact(self, channel: str, platform_user_id: str, platform_chat_id: str) -> tuple[str, bool]:
         now = int(datetime.now(timezone.utc).timestamp())
         async with self._lock:
