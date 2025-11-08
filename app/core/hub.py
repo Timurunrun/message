@@ -88,6 +88,7 @@ class Hub:
             channel=msg.channel,
             chat_id=msg.chat_id,
             user_id=msg.user_id,
+            reply_to_message_id=msg.message_id,
         )
 
         crm_binding = None
@@ -315,7 +316,11 @@ class Hub:
             except Exception as exc:
                 logger.warning("Не удалось имитировать набор: {}", exc)
         try:
-            await connector.send_message(chat_id=session.chat_id, text=text)
+            await connector.send_message(
+                chat_id=session.chat_id,
+                text=text,
+                reply_to_message_id=session.reply_to_message_id,
+            )
         except Exception as exc:
             logger.exception("Не удалось отправить сообщение через коннектор {}: {}", connector.name, exc)
             return f"send_failed: {exc}"

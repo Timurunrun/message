@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import contextvars
+from typing import Optional
 
 from .models import Channel
 
@@ -12,6 +13,7 @@ class SessionContext:
 	channel: Channel
 	chat_id: str
 	user_id: str
+	reply_to_message_id: Optional[str] = None
 
 
 _current_session: contextvars.ContextVar[SessionContext | None] = contextvars.ContextVar(

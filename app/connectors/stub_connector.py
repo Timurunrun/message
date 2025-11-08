@@ -33,8 +33,9 @@ class StubConnector(BaseConnector):
         self._running = False
         logger.info(f"{self._name} остановлен")
 
-    async def send_message(self, chat_id: str, text: str) -> None:
-        logger.info(f"[{self._name}] отправка_сообщения chat_id={chat_id} text={text!r}")
+    async def send_message(self, chat_id: str, text: str, reply_to_message_id: Optional[str] = None) -> None:
+        reply_suffix = f" reply_to={reply_to_message_id}" if reply_to_message_id else ""
+        logger.info(f"[{self._name}] отправка_сообщения chat_id={chat_id}{reply_suffix} text={text!r}")
 
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:
         logger.info(f"[{self._name}] имитация_набора chat_id={chat_id} seconds={seconds}")

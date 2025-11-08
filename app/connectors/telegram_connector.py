@@ -77,17 +77,18 @@ class TelegramConnector(BaseConnector):
         text = message.text or message.caption or ""
         chat_id = str(message.chat.id)
         user_id = str(message.from_user.id if message.from_user else message.chat.id)
+        try:
+            raw_message = message.model_dump()
+        except Exception:
+            raw_message = None
 
         # Если aiogram предоставляет business_connection_id у сообщения — включаем его
         bc_id = getattr(message, "business_connection_id", None)
-        try:
-            if bc_id is None:
-                md = message.model_dump()
-                bc_id = md.get("business_connection_id")
-        except Exception:
-            bc_id = None
+        if bc_id is None and isinstance(raw_message, dict):
+            bc_id = raw_message.get("business_connection_id")
         stored_chat_id = f"{chat_id}:{bc_id}" if bc_id else chat_id
         command = text.strip().split()[0].lower() if text.strip() else ""
+        reply_to_id = str(message.message_id)
 
         # Перехватываем /start
         if command == "/start":
@@ -95,6 +96,7 @@ class TelegramConnector(BaseConnector):
                 await self.send_message(
                     chat_id=stored_chat_id,
                     text="Добрый день! Это компания по корпоративной доставке питания.\n\nНапишите в чат, что вас интересует. Вам ответит первый освободившийся оператор 🍽️",
+                    reply_to_message_id=reply_to_id,
                 )
             except Exception:
                 pass
@@ -102,14 +104,26 @@ class TelegramConnector(BaseConnector):
 
         if command == "/clear_db":
             if self._on_clear_db is None:
-                await self.send_message(chat_id=stored_chat_id, text="Очистка БД недоступна")
+                await self.send_message(
+                    chat_id=stored_chat_id,
+                    text="Очистка БД недоступна",
+                    reply_to_message_id=reply_to_id,
+                )
                 return
             try:
                 await self._on_clear_db()
-                await self.send_message(chat_id=stored_chat_id, text="База данных успешно очищена")
+                await self.send_message(
+                    chat_id=stored_chat_id,
+                    text="База данных успешно очищена",
+                    reply_to_message_id=reply_to_id,
+                )
             except Exception as exc:
                 logger.exception("Ошибка при очистке БД через Telegram-команду: {}", exc)
-                await self.send_message(chat_id=stored_chat_id, text="Не удалось очистить базу данных. Проверьте логи приложения.")
+                await self.send_message(
+                    chat_id=stored_chat_id,
+                    text="Не удалось очистить базу данных. Проверьте логи приложения.",
+                    reply_to_message_id=reply_to_id,
+                )
             return
 
         incoming = IncomingMessage(
@@ -118,7 +132,8 @@ class TelegramConnector(BaseConnector):
             user_id=user_id,
             text=text,
             timestamp=datetime.now(timezone.utc),
-            raw=message.model_dump(),
+            message_id=reply_to_id,
+            raw=raw_message,
         )
         await self._on_message(incoming)
 
@@ -130,14 +145,14 @@ class TelegramConnector(BaseConnector):
         text = message.text or message.caption or ""
         chat_id = str(message.chat.id)
         user_id = str(message.from_user.id if message.from_user else message.chat.id)
+        try:
+            raw_message = message.model_dump()
+        except Exception:
+            raw_message = None
         # У бизнес-сообщений должен быть business_connection_id
         bc_id = getattr(message, "business_connection_id", None)
-        try:
-            if bc_id is None:
-                md = message.model_dump()
-                bc_id = md.get("business_connection_id")
-        except Exception:
-            bc_id = None
+        if bc_id is None and isinstance(raw_message, dict):
+            bc_id = raw_message.get("business_connection_id")
         stored_chat_id = f"{chat_id}:{bc_id}" if bc_id else chat_id
         incoming = IncomingMessage(
             channel=self.channel,
@@ -145,7 +160,8 @@ class TelegramConnector(BaseConnector):
             user_id=user_id,
             text=text,
             timestamp=datetime.now(timezone.utc),
-            raw=message.model_dump(),
+            message_id=str(message.message_id),
+            raw=raw_message,
         )
         await self._on_message(incoming)
 
@@ -156,12 +172,22 @@ class TelegramConnector(BaseConnector):
         except Exception:
             logger.info("Получено обновление бизнес-подключения")
 
-    async def send_message(self, chat_id: str, text: str) -> None:
+    async def send_message(self, chat_id: str, text: str, reply_to_message_id: Optional[str] = None) -> None:
         base_chat_id, bc_id = _parse_tg_chat_id(chat_id)
+        kwargs = {"chat_id": base_chat_id, "text": text}
         if bc_id:
-            await self._bot.send_message(chat_id=base_chat_id, text=text, business_connection_id=bc_id)
-        else:
-            await self._bot.send_message(chat_id=base_chat_id, text=text)
+            kwargs["business_connection_id"] = bc_id
+        if reply_to_message_id:
+            try:
+                kwargs["reply_to_message_id"] = int(reply_to_message_id)
+                # Включаем отправку без ошибки, если исходное сообщение недоступно
+                kwargs.setdefault("allow_sending_without_reply", True)
+            except ValueError:
+                logger.warning(
+                    "Некорректный идентификатор сообщения для reply в Telegram: {}",
+                    reply_to_message_id,
+                )
+        await self._bot.send_message(**kwargs)
 
     # Имитируем набор текста
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:

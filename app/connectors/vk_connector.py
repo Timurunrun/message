@@ -191,12 +191,16 @@ class VKConnector(BaseConnector):
                             continue
                         if self._on_message is None:
                             continue
+                        msg_id = msg.get("conversation_message_id")
+                        if msg_id is None:
+                            msg_id = msg.get("id")
                         incoming = IncomingMessage(
                             channel=self.channel,
                             chat_id=self._encode_chat_id(peer_id=int(peer_id), community=community),
                             user_id=str(from_id),
                             text=text,
                             timestamp=datetime.now(timezone.utc),
+                            message_id=str(msg_id) if msg_id is not None else None,
                             raw=upd,
                         )
                         await self._on_message(incoming)
@@ -211,14 +215,19 @@ class VKConnector(BaseConnector):
                 except Exception:
                     await asyncio.sleep(5.0)
 
-    async def send_message(self, chat_id: str, text: str) -> None:
+    async def send_message(self, chat_id: str, text: str, reply_to_message_id: Optional[str] = None) -> None:
         peer_id, community = self._decode_chat_id(chat_id)
         random_id = random.randint(1, 2**31 - 1)
-        await self._api_call(
-            "messages.send",
-            community,
-            {"peer_id": peer_id, "random_id": random_id, "message": text},
-        )
+        params = {"peer_id": peer_id, "random_id": random_id, "message": text}
+        if reply_to_message_id:
+            try:
+                params["reply_to"] = int(reply_to_message_id)
+            except ValueError:
+                logger.warning(
+                    "Некорректный идентификатор сообщения для reply в VK: {}",
+                    reply_to_message_id,
+                )
+        await self._api_call("messages.send", community, params)
 
     # Имитируем набор текста
     async def simulate_typing(self, chat_id: str, seconds: float) -> None:

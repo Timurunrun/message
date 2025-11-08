@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Optional
 
 from app.core.models import IncomingMessage, Channel
 
@@ -29,7 +29,7 @@ class BaseConnector(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def send_message(self, chat_id: str, text: str) -> None:
+    async def send_message(self, chat_id: str, text: str, reply_to_message_id: Optional[str] = None) -> None:
         ...
 
     @abc.abstractmethod

@@ -26,6 +26,7 @@ class IncomingMessage:
     user_id: str
     text: str
     timestamp: datetime
+    message_id: Optional[str] = None
     raw: Any | None = None
 
 
