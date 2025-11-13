@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 import httpx
 from loguru import logger
 
-from app.core.models import IncomingMessage, Channel
+from app.core.models import IncomingMessage, Channel, VoiceAttachment
 from .base import BaseConnector, OnMessageCallback
 
 
@@ -194,6 +194,48 @@ class VKConnector(BaseConnector):
                         msg_id = msg.get("conversation_message_id")
                         if msg_id is None:
                             msg_id = msg.get("id")
+                        voice_payload: Optional[VoiceAttachment] = None
+                        attachments = msg.get("attachments") or []
+                        for attachment in attachments:
+                            if attachment.get("type") != "audio_message":
+                                continue
+                            audio_message = attachment.get("audio_message") or {}
+                            audio_url = audio_message.get("link_mp3") or audio_message.get("link_ogg")
+                            if not audio_url:
+                                continue
+
+                            async def _download_voice(url: str = audio_url) -> bytes:
+                                response = await self._client.get(url)
+                                response.raise_for_status()
+                                return response.content
+
+                            duration = audio_message.get("duration")
+                            duration_seconds: Optional[float] = None
+                            if isinstance(duration, (int, float)):
+                                duration_seconds = float(duration)
+                            doc_id = audio_message.get("id")
+                            owner_id = audio_message.get("owner_id")
+                            mime_type = None
+                            if isinstance(audio_url, str):
+                                lower_url = audio_url.lower()
+                                if lower_url.endswith(".ogg"):
+                                    mime_type = "audio/ogg"
+                                elif lower_url.endswith(".mp3"):
+                                    mime_type = "audio/mpeg"
+                            extension = "mp3" if mime_type != "audio/ogg" else "ogg"
+                            filename = (
+                                f"vk_voice_{owner_id}_{doc_id}.{extension}"
+                                if doc_id is not None and owner_id is not None
+                                else f"vk_voice.{extension}"
+                            )
+                            voice_payload = VoiceAttachment(
+                                download=_download_voice,
+                                file_name=filename,
+                                mime_type=mime_type,
+                                duration_seconds=duration_seconds,
+                                file_size=audio_message.get("size"),
+                            )
+                            break
                         incoming = IncomingMessage(
                             channel=self.channel,
                             chat_id=self._encode_chat_id(peer_id=int(peer_id), community=community),
@@ -202,6 +244,7 @@ class VKConnector(BaseConnector):
                             timestamp=datetime.now(timezone.utc),
                             message_id=str(msg_id) if msg_id is not None else None,
                             raw=upd,
+                            voice=voice_payload,
                         )
                         await self._on_message(incoming)
             except asyncio.CancelledError:

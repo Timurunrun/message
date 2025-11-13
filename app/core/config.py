@@ -14,6 +14,7 @@ class AppConfig(BaseModel):
     ai_model: str | None = None
     ai_reasoning_effort: str | None = None
     ai_verbosity: str | None = None
+    ai_transcription_model: str | None = None
     amocrm_base_url: str | None = None
     amocrm_access_token: str | None = None
 
@@ -29,6 +30,7 @@ class AppConfig(BaseModel):
             ai_model=os.getenv("AI_MODEL", "gpt-5"),
             ai_reasoning_effort=os.getenv("AI_REASONING_EFFORT", "low"),
             ai_verbosity=os.getenv("AI_VERBOSITY", "low"),
+            ai_transcription_model=os.getenv("AI_TRANSCRIPTION_MODEL", "gpt-4o-transcribe"),
             amocrm_base_url=os.getenv("AMOCRM_BASE_URL") or None,
             amocrm_access_token=os.getenv("AMOCRM_ACCESS_TOKEN") or None,
         )

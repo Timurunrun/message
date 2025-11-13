@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Awaitable, Callable
 from datetime import datetime
 
 
@@ -20,6 +20,15 @@ class Direction(str, Enum):
 
 
 @dataclass
+class VoiceAttachment:
+    download: Callable[[], Awaitable[bytes]]
+    file_name: Optional[str] = None
+    mime_type: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    file_size: Optional[int] = None
+
+
+@dataclass
 class IncomingMessage:
     channel: Channel
     chat_id: str
@@ -28,6 +37,7 @@ class IncomingMessage:
     timestamp: datetime
     message_id: Optional[str] = None
     raw: Any | None = None
+    voice: Optional[VoiceAttachment] = None
 
 
 @dataclass

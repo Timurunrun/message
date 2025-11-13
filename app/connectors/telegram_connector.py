@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Optional, Awaitable, Callable
 import random
+from io import BytesIO
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.enums import ChatAction
@@ -11,7 +12,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 from loguru import logger
 
-from app.core.models import IncomingMessage, Channel
+from app.core.models import IncomingMessage, Channel, VoiceAttachment
 from .base import BaseConnector, OnMessageCallback
 
 
@@ -82,6 +83,25 @@ class TelegramConnector(BaseConnector):
         except Exception:
             raw_message = None
 
+        voice_payload: Optional[VoiceAttachment] = None
+        if getattr(message, "voice", None):
+            voice = message.voice
+
+            async def _download_voice() -> bytes:
+                file = await self._bot.get_file(voice.file_id)
+                buffer = BytesIO()
+                await self._bot.download_file(file_path=file.file_path, destination=buffer)
+                buffer.seek(0)
+                return buffer.getvalue()
+
+            voice_payload = VoiceAttachment(
+                download=_download_voice,
+                file_name=f"{voice.file_unique_id or 'voice'}.ogg",
+                mime_type=voice.mime_type,
+                duration_seconds=float(voice.duration) if voice.duration is not None else None,
+                file_size=voice.file_size,
+            )
+
         # Если aiogram предоставляет business_connection_id у сообщения — включаем его
         bc_id = getattr(message, "business_connection_id", None)
         if bc_id is None and isinstance(raw_message, dict):
@@ -134,6 +154,7 @@ class TelegramConnector(BaseConnector):
             timestamp=datetime.now(timezone.utc),
             message_id=reply_to_id,
             raw=raw_message,
+            voice=voice_payload,
         )
         await self._on_message(incoming)
 
@@ -149,6 +170,24 @@ class TelegramConnector(BaseConnector):
             raw_message = message.model_dump()
         except Exception:
             raw_message = None
+        voice_payload: Optional[VoiceAttachment] = None
+        if getattr(message, "voice", None):
+            voice = message.voice
+
+            async def _download_voice() -> bytes:
+                file = await self._bot.get_file(voice.file_id)
+                buffer = BytesIO()
+                await self._bot.download_file(file_path=file.file_path, destination=buffer)
+                buffer.seek(0)
+                return buffer.getvalue()
+
+            voice_payload = VoiceAttachment(
+                download=_download_voice,
+                file_name=f"{voice.file_unique_id or 'voice'}.ogg",
+                mime_type=voice.mime_type,
+                duration_seconds=float(voice.duration) if voice.duration is not None else None,
+                file_size=voice.file_size,
+            )
         # У бизнес-сообщений должен быть business_connection_id
         bc_id = getattr(message, "business_connection_id", None)
         if bc_id is None and isinstance(raw_message, dict):
@@ -162,6 +201,7 @@ class TelegramConnector(BaseConnector):
             timestamp=datetime.now(timezone.utc),
             message_id=str(message.message_id),
             raw=raw_message,
+            voice=voice_payload,
         )
         await self._on_message(incoming)
 

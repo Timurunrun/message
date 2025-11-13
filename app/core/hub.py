@@ -11,6 +11,7 @@ from .models import IncomingMessage, MessageRecord, Direction, ToolInvocation, A
 from .storage import Storage
 from .utils import estimate_typing_seconds
 from app.ai import OpenAIManager, AIMessage, Role
+from app.ai.transcriber import SpeechToTextService
 from app.connectors.base import BaseConnector
 from app.core.models import Channel
 from .config import AppConfig
@@ -39,6 +40,7 @@ class Hub:
         self._connectors = connectors
         self._tasks: list[asyncio.Task] = []
         self._crm_service = crm_service
+        self._transcriber: Optional[SpeechToTextService] = None
 
         set_messaging_actions(
             MessagingActions(
@@ -51,14 +53,23 @@ class Hub:
         # Инициализируем менеджер ИИ
         try:
             self._assistant = OpenAIManager(
-            api_key=getattr(config, "openai_api_key", None),
-            model=getattr(config, "ai_model"),
-            reasoning_effort=getattr(config, "ai_reasoning_effort"),
-            verbosity=getattr(config, "ai_verbosity"),
+                api_key=getattr(config, "openai_api_key", None),
+                model=getattr(config, "ai_model"),
+                reasoning_effort=getattr(config, "ai_reasoning_effort"),
+                verbosity=getattr(config, "ai_verbosity"),
             )
         except Exception as e:
             logger.error("Не удалось инициализировать ИИ: {}", e)
             self._assistant = None
+
+        try:
+            self._transcriber = SpeechToTextService(
+                api_key=getattr(config, "openai_api_key", None),
+                model=getattr(config, "ai_transcription_model", None),
+            )
+        except Exception as e:
+            logger.warning("Сервис расшифровки аудио не доступен: {}", e)
+            self._transcriber = None
 
     async def start(self) -> None:
         for connector in self._connectors:
@@ -76,7 +87,6 @@ class Hub:
         clear_messaging_actions()
 
     async def on_incoming_message(self, msg: IncomingMessage) -> None:
-        logger.info(f"Входящее сообщение через канал {msg.channel.value} от user={msg.user_id} chat={msg.chat_id}: {msg.text!r}")
         global_user_id, _ = await self._storage.upsert_contact(
             channel=msg.channel.value,
             platform_user_id=msg.user_id,
@@ -89,6 +99,58 @@ class Hub:
             chat_id=msg.chat_id,
             user_id=msg.user_id,
             reply_to_message_id=msg.message_id,
+        )
+
+        effective_text = msg.text or ""
+        if msg.voice is not None:
+            transcription_text: Optional[str] = None
+            if self._transcriber is None:
+                logger.warning(
+                    "Получено голосовое сообщение, но сервис расшифровки не настроен (channel={} chat={})",
+                    msg.channel.value,
+                    msg.chat_id,
+                )
+            else:
+                try:
+                    audio_bytes = await msg.voice.download()
+                    transcription_text = await self._transcriber.transcribe(
+                        audio_bytes=audio_bytes,
+                        file_name=msg.voice.file_name,
+                        mime_type=msg.voice.mime_type,
+                    )
+                    if transcription_text:
+                        transcription_text = transcription_text.strip()
+                        logger.info(
+                            "Расшифровано голосовое сообщение channel={} chat={}: {}",
+                            msg.channel.value,
+                            msg.chat_id,
+                            transcription_text,
+                        )
+                except Exception as exc:
+                    logger.exception("Не удалось расшифровать голосовое сообщение: {}", exc)
+                    transcription_text = None
+
+            fragments: List[str] = []
+            base_fragment = effective_text.strip()
+            if base_fragment:
+                fragments.append(base_fragment)
+            if transcription_text:
+                fragments.append(f"[Расшифровка голосового сообщения (возможны неточности)]\n{transcription_text}")
+            else:
+                fragments.append("[Голосовое сообщение — расшифровка недоступна]")
+            effective_text = "\n\n".join(fragments).strip()
+
+        msg.text = effective_text or msg.text or ""
+
+        preview_text = msg.text.strip() if msg.text else ""
+        if not preview_text and msg.voice is not None:
+            preview_text = "<voice>"
+        logger.info(
+            "Входящее сообщение через канал {} от user={} chat={}: {}",
+            msg.channel.value,
+            msg.user_id,
+            msg.chat_id,
+            preview_text,
         )
 
         crm_binding = None
